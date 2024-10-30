@@ -27,7 +27,7 @@ st.sidebar.title("Data Selection")
 adf_key = st.sidebar.selectbox("Mold Code:", options=list(mold_codes.keys()))
 adf = mold_codes[adf_key]
 
-excluded_columns = ['date', 'time', 'working', 'count', 'datetime', 'registration_time', 'tryshot_signal', 'mold_code']
+excluded_columns = ['date', 'time', 'working', 'count', 'datetime', 'registration_time', 'tryshot_signal', 'mold_code', 'heating_furnace']
 available_columns = [col for col in adf.columns if col not in excluded_columns]
 
 num_charts = st.sidebar.selectbox("Number of Line Charts:", options=[1, 2, 3, 4], index=0)
