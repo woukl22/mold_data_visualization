@@ -9,7 +9,7 @@ df = df.drop(columns=['Unnamed: 0', 'line', 'name', 'mold_name', 'emergency_stop
 df = df.drop(index=19327)
 df = df.rename(columns={'date': 'temp_date', 'time': 'date'}).rename(columns={'temp_date': 'time'})
 
-# 결측치 제거
+# 결측치 처리
 molten_filtered = df['molten_volume'].loc[~df['molten_volume'].isin([0, 2767])].dropna()
 molten_median = molten_filtered.median()
 df['molten_volume'] = df['molten_volume'].fillna(molten_median)
@@ -27,10 +27,10 @@ st.sidebar.title("Data Selection")
 adf_key = st.sidebar.selectbox("Mold Code:", options=list(mold_codes.keys()))
 adf = mold_codes[adf_key]
 
-# 불필요한 column 선택 제한
-excluded_columns = ['date', 'time', 'working', 'count', 'datetime']
+excluded_columns = ['date', 'time', 'working', 'count', 'datetime', 'registration_time', 'tryshot_signal', 'mold_code']
 available_columns = [col for col in adf.columns if col not in excluded_columns]
-column_data = st.sidebar.selectbox("Column:", options=available_columns)
+
+num_charts = st.sidebar.selectbox("Number of Line Charts:", options=[1, 2, 3, 4], index=0)
 
 start_date = st.sidebar.date_input("Start Date:", value=pd.to_datetime("2019-01-01"))
 end_date = st.sidebar.date_input("End Date:", value=pd.to_datetime("2019-04-01"))
@@ -42,24 +42,43 @@ st.title("Mold Data Visualization")
 if not filtered_data.empty:
     filtered_data['date'] = pd.to_datetime(filtered_data['date'])
     unique_days = filtered_data['date'].dt.date.unique()
+    
+    # 라인차트
+    if num_charts == 1:
+        cols = [st.container()]
+    elif num_charts == 2:
+        cols = st.columns(2)
+    elif num_charts == 3:
+        cols = st.columns(3)
+    else:
+        cols = [st.columns(2), st.columns(2)]
 
-    fig, ax = plt.subplots(figsize=(12, 8))
-    for day in unique_days:
-        daily_data = filtered_data[filtered_data['date'].dt.date == day].copy()
-        daily_data['time'] = pd.to_datetime(daily_data['time'], format='%H:%M:%S', errors='coerce').dt.time
-        daily_data['time'] = pd.to_timedelta(daily_data['time'].astype(str))
-        ax.plot(daily_data['time'].dt.total_seconds() / 3600, daily_data[column_data], label=str(day))
+    for i in range(num_charts):
+        if num_charts == 4:
+            col = cols[i // 2][i % 2]
+        else:
+            col = cols[i]
 
-    ax.set_facecolor("black")
-    ax.set_title(f"{column_data} Over Each Day ({start_date} to {end_date})", color="black")
-    ax.set_xlabel("Time (Hours)", color="black")
-    ax.set_ylabel(column_data, color="black")
-    ax.set_xticks(range(0, 25))
-    ax.grid(color='gray', linestyle='--', linewidth=0.5)
-    ax.legend(title="Date", loc="upper left", bbox_to_anchor=(1, 1), title_fontsize='small', fontsize='small', labelcolor='black')
+        with col:
+            column = st.selectbox(f"Select Column for Line Chart {i + 1}:", options=available_columns, key=f"chart_{i + 1}")
+            fig, ax = plt.subplots(figsize=(6, 4))
 
-    st.pyplot(fig)
+            for day in unique_days:
+                daily_data = filtered_data[filtered_data['date'].dt.date == day].copy()
+                daily_data['time'] = pd.to_datetime(daily_data['time'], format='%H:%M:%S', errors='coerce').dt.time
+                daily_data['time'] = pd.to_timedelta(daily_data['time'].astype(str))
+                ax.plot(daily_data['time'].dt.total_seconds() / 3600, daily_data[column], label=str(day))
 
+            ax.set_facecolor("black")
+            ax.set_title(f"{column} Over Each Day ({start_date} to {end_date})", color="black")
+            ax.set_xlabel("Time (Hours)", color="black")
+            ax.set_ylabel(column, color="black")
+            ax.grid(color='gray', linestyle='--', linewidth=0.5)
+            ax.legend(title="Date", loc="upper left", bbox_to_anchor=(1, 1), fontsize='small', labelcolor='black')
+
+            st.pyplot(fig)
+
+    # 상관관계 히트맵
     st.subheader("Correlation Heatmap")
     numeric_columns = adf[available_columns].select_dtypes(include=[np.number]).columns
     corr = adf[numeric_columns].corr()
