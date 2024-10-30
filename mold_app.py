@@ -2,6 +2,7 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import seaborn as sns
 
 df = pd.read_csv('./data.csv', encoding='cp949', low_memory=False)
 df = df.drop(columns=['Unnamed: 0', 'line', 'name', 'mold_name', 'emergency_stop'])
@@ -26,7 +27,11 @@ st.sidebar.title("Data Selection")
 adf_key = st.sidebar.selectbox("Mold Code:", options=list(mold_codes.keys()))
 adf = mold_codes[adf_key]
 
-column_data = st.sidebar.selectbox("Column:", options=adf.columns)
+# 불필요한 column 선택 제한
+excluded_columns = ['date', 'time', 'working', 'count', 'datetime']
+available_columns = [col for col in adf.columns if col not in excluded_columns]
+column_data = st.sidebar.selectbox("Column:", options=available_columns)
+
 start_date = st.sidebar.date_input("Start Date:", value=pd.to_datetime("2019-01-01"))
 end_date = st.sidebar.date_input("End Date:", value=pd.to_datetime("2019-04-01"))
 
@@ -53,6 +58,13 @@ if not filtered_data.empty:
     ax.grid(color='gray', linestyle='--', linewidth=0.5)
     ax.legend(title="Date", loc="upper left", bbox_to_anchor=(1, 1), title_fontsize='small', fontsize='small', labelcolor='black')
 
+    st.pyplot(fig)
+
+    st.subheader("Correlation Heatmap")
+    numeric_columns = adf[available_columns].select_dtypes(include=[np.number]).columns
+    corr = adf[numeric_columns].corr()
+    fig, ax = plt.subplots(figsize=(10, 8))
+    sns.heatmap(corr, annot=True, fmt=".2f", cmap='coolwarm', ax=ax, annot_kws={"size": 8})
     st.pyplot(fig)
 else:
     st.warning("No data available for the selected date range.")
