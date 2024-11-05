@@ -1,8 +1,8 @@
 import streamlit as st
-import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-import seaborn as sns
+import plotly.express as px
+import plotly.graph_objects as go
 
 df = pd.read_csv('./data.csv', encoding='cp949', low_memory=False)
 df = df.drop(columns=['Unnamed: 0', 'line', 'name', 'mold_name', 'emergency_stop'])
@@ -61,29 +61,33 @@ if not filtered_data.empty:
 
         with col:
             column = st.selectbox(f"Select Column for Line Chart {i + 1}:", options=available_columns, key=f"chart_{i + 1}")
-            fig, ax = plt.subplots(figsize=(6, 4))
-
+            
+            fig = go.Figure()
             for day in unique_days:
                 daily_data = filtered_data[filtered_data['date'].dt.date == day].copy()
                 daily_data['time'] = pd.to_datetime(daily_data['time'], format='%H:%M:%S', errors='coerce').dt.time
                 daily_data['time'] = pd.to_timedelta(daily_data['time'].astype(str))
-                ax.plot(daily_data['time'].dt.total_seconds() / 3600, daily_data[column], label=str(day))
+                fig.add_trace(go.Scatter(x=daily_data['time'].dt.total_seconds() / 3600, y=daily_data[column],
+                                         mode='lines', name=str(day)))
 
-            ax.set_facecolor("black")
-            ax.set_title(f"{column} Over Each Day ({start_date} to {end_date})", color="black")
-            ax.set_xlabel("Time (Hours)", color="black")
-            ax.set_ylabel(column, color="black")
-            ax.grid(color='gray', linestyle='--', linewidth=0.5)
-            ax.legend(title="Date", loc="upper left", bbox_to_anchor=(1, 1), fontsize='small', labelcolor='black')
+            fig.update_layout(
+                title=f"{column} Over Each Day ({start_date} to {end_date})",
+                xaxis_title="Time (Hours)",
+                yaxis_title=column,
+                legend_title="Date",
+                plot_bgcolor="white",
+                paper_bgcolor="white",
+                font=dict(color="white")
+            )
 
-            st.pyplot(fig)
+            st.plotly_chart(fig, use_container_width=True)
 
     # 상관관계 히트맵
     st.subheader("Correlation Heatmap")
     numeric_columns = adf[available_columns].select_dtypes(include=[np.number]).columns
     corr = adf[numeric_columns].corr()
-    fig, ax = plt.subplots(figsize=(10, 8))
-    sns.heatmap(corr, annot=True, fmt=".2f", cmap='coolwarm', ax=ax, annot_kws={"size": 8})
-    st.pyplot(fig)
+
+    fig = px.imshow(corr, text_auto=".2f", aspect="auto", title="Correlation Heatmap")
+    st.plotly_chart(fig, use_container_width=True)
 else:
     st.warning("No data available for the selected date range.")
